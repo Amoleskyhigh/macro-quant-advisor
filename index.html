@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宏觀量化投資顧問 | Macro Quant Advisor</title>
+<style>
+*,::before,::after{box-sizing:border-box;border-width:0;border-style:solid}
+body{background:#09090b;color:#e4e4e7;margin:0;font-family:'Inter','Noto Sans TC',system-ui,sans-serif;-webkit-text-size-adjust:100%}
+button,input{font-family:inherit;font-size:100%}
+input[type=range]{width:100%;accent-color:#fbbf24}
+svg{display:block}
+
+/* Layout */
+.max-w{max-width:72rem;margin:0 auto;padding:1.5rem 1rem}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem}
+.grid-7{display:grid;grid-template-columns:repeat(7,1fr);gap:.5rem}
+@media(max-width:768px){
+  .grid-2,.grid-4{grid-template-columns:1fr 1fr}
+  .grid-3{grid-template-columns:1fr 1fr}
+  .grid-7{grid-template-columns:repeat(4,1fr)}
+}
+@media(max-width:480px){
+  .grid-3,.grid-4{grid-template-columns:1fr 1fr}
+  .grid-7{grid-template-columns:repeat(3,1fr)}
+}
+
+/* Cards */
+.card{background:#18181b;border:1px solid #27272a;border-radius:.75rem;padding:1rem}
+.card-sm{background:#09090b;border:1px solid #27272a;border-radius:.5rem;padding:.75rem}
+
+/* Typography */
+.mono{font-family:ui-monospace,monospace}
+.text-xs{font-size:.75rem;line-height:1rem}
+.text-sm{font-size:.875rem;line-height:1.25rem}
+.text-lg{font-size:1.125rem}
+.text-2xl{font-size:1.5rem;line-height:2rem}
+.text-3xl{font-size:1.875rem;line-height:2.25rem}
+.font-bold{font-weight:700}
+.font-semibold{font-weight:600}
+.mb-1{margin-bottom:.25rem}
+.mb-2{margin-bottom:.5rem}
+.mb-3{margin-bottom:.75rem}
+.mb-4{margin-bottom:1rem}
+.mb-6{margin-bottom:1.5rem}
+.mt-1{margin-top:.25rem}
+.mt-2{margin-top:.5rem}
+.mt-3{margin-top:.75rem}
+.mt-4{margin-top:1rem}
+.flex{display:flex}
+.items-center{align-items:center}
+.items-baseline{align-items:baseline}
+.justify-between{justify-content:space-between}
+.gap-1{gap:.25rem}
+.gap-2{gap:.5rem}
+.gap-3{gap:.75rem}
+.text-center{text-align:center}
+.text-right{text-align:right}
+.w-full{width:100%}
+.border-b{border-bottom:1px solid #27272a}
+.pb-4{padding-bottom:1rem}
+.rounded-full{border-radius:9999px}
+.overflow-hidden{overflow:hidden}
+.h-2{height:.5rem}
+
+/* Colors */
+.text-amber-300{color:#fcd34d}
+.text-amber-400{color:#fbbf24}
+.text-emerald-400{color:#34d399}
+.text-red-400{color:#f87171}
+.text-sky-300{color:#7dd3fc}
+.text-zinc-400{color:#a1a1aa}
+.text-zinc-500{color:#71717a}
+.text-zinc-600{color:#52525b}
+.text-zinc-300{color:#d4d4d8}
+
+/* Score badge */
+.badge{display:inline-flex;align-items:center;padding:.125rem .5rem;border-radius:.25rem;font-size:.75rem;font-weight:600;border-width:1px;border-style:solid}
+.badge-green{color:#34d399;border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.1)}
+.badge-red{color:#f87171;border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.1)}
+.badge-amber{color:#fbbf24;border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.1)}
+.badge-sky{color:#7dd3fc;border-color:rgba(125,211,252,.4);background:rgba(125,211,252,.1)}
+
+/* Score bar */
+.score-track{height:.375rem;background:#27272a;border-radius:9999px;overflow:hidden}
+.score-fill{height:100%;border-radius:9999px}
+
+/* Fed Quadrant Canvas */
+#fedCanvas{display:block;width:100%;border-radius:.5rem}
+.ctrl-label{font-size:.75rem;color:#71717a;margin-bottom:.25rem;display:block}
+.ctrl-val{font-family:ui-monospace,monospace;font-weight:700;color:#fbbf24;font-size:.875rem}
+.policy-result{margin-top:.75rem;padding:.75rem 1rem;border-radius:.5rem;border-width:1px;border-style:solid;font-size:.875rem}
+.policy-result .p-name{font-weight:700;font-size:.9375rem;margin-bottom:.25rem}
+.policy-result .p-desc{color:#a1a1aa;font-size:.8125rem}
+.policy-result .p-action{color:#e4e4e7;font-size:.8125rem;margin-top:.25rem}
+
+/* Allocation bar */
+.alloc-bar{height:.5rem;border-radius:9999px;overflow:hidden;display:flex;gap:2px}
+.alloc-seg{height:100%;transition:width .3s}
+
+/* Metric card */
+.metric-val{font-size:1.25rem;font-weight:700;font-family:ui-monospace,monospace}
+.metric-label{font-size:.6875rem;color:#71717a;text-transform:uppercase;letter-spacing:.05em}
+.metric-sub{font-size:.75rem;margin-top:.125rem}
+</style>
+</head>
+<body>
+<div class="max-w">
+
+  <!-- Header -->
+  <div class="border-b pb-4 mb-6">
+    <div class="text-xs mono" style="color:rgba(251,191,36,.7);text-transform:uppercase;letter-spacing:.1em">Macro Quant Advisor · v1.0</div>
+    <h1 class="text-2xl font-bold mt-1">宏觀量化投資顧問</h1>
+    <p class="text-sm text-zinc-400 mt-1">聯準會政策定位 × 市場情緒 × 估值評分 → 配置建議</p>
+    <div id="timestamp" class="text-xs text-zinc-600 mt-1 mono"></div>
+  </div>
+
+  <!-- Score + Allocation Row -->
+  <div class="grid-2 mb-4">
+    <!-- Score Card -->
+    <div class="card">
+      <div class="text-xs text-zinc-500 mb-1">綜合評分</div>
+      <div class="flex items-baseline gap-2 mb-3">
+        <span class="text-3xl font-bold mono text-amber-300" id="scoreVal">—</span>
+        <span class="text-zinc-500 text-sm">/ 13 pts</span>
+        <span class="badge badge-amber" id="scoreBadge">計算中</span>
+      </div>
+      <div class="score-track mb-1">
+        <div class="score-fill" id="scoreBar" style="width:0%;background:#fbbf24"></div>
+      </div>
+      <div class="text-xs text-zinc-600 mb-3" id="scoreDesc">—</div>
+      <!-- Sub scores -->
+      <div class="grid-2 gap-2" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+        <div class="card-sm">
+          <div class="metric-label">趨勢軸</div>
+          <div class="metric-val text-emerald-400" id="trendScore">—</div>
+          <div class="text-xs text-zinc-600">/ 8 pts</div>
+        </div>
+        <div class="card-sm">
+          <div class="metric-label">情緒軸</div>
+          <div class="metric-val text-sky-300" id="sentScore">—</div>
+          <div class="text-xs text-zinc-600">/ 9 pts</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Allocation Card -->
+    <div class="card">
+      <div class="text-xs text-zinc-500 mb-2">建議配置</div>
+      <div id="allocDisplay" style="display:flex;flex-direction:column;gap:.5rem">
+        <!-- Filled by JS -->
+      </div>
+      <div class="alloc-bar mt-3" id="allocBar"></div>
+      <div class="text-xs text-zinc-600 mt-2" id="allocNote">—</div>
+    </div>
+  </div>
+
+  <!-- Key Metrics -->
+  <div class="grid-7 mb-4" id="metricsGrid">
+    <!-- Filled by JS -->
+  </div>
+
+  <!-- Fed Policy Quadrant -->
+  <div class="card mb-4">
+    <div class="flex items-center justify-between mb-3">
+      <div>
+        <div class="text-sm font-semibold text-zinc-300">🏛️ 聯準會決策四象限</div>
+        <div class="text-xs text-zinc-500 mt-1">通膨目標 2%（橘線）× 自然失業率 4%（橘線）→ 四種政策情境</div>
+      </div>
+      <span class="badge badge-amber" id="fedBadge">計算中</span>
+    </div>
+    <canvas id="fedCanvas" height="360"></canvas>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem">
+      <div>
+        <label class="ctrl-label">📈 核心 PCE 通膨率 <span class="ctrl-val" id="cpiVal">—</span></label>
+        <input type="range" id="cpiSlider" min="0" max="10" step="0.1" value="2.6">
+      </div>
+      <div>
+        <label class="ctrl-label">👥 失業率 <span class="ctrl-val" id="unempVal">—</span></label>
+        <input type="range" id="unempSlider" min="2" max="12" step="0.1" value="4.1">
+      </div>
+    </div>
+    <div class="policy-result" id="policyResult"></div>
+    <!-- Historical legend -->
+    <div style="display:flex;flex-wrap:wrap;gap:.5rem .75rem;margin-top:.75rem">
+      <div class="flex items-center gap-1"><div style="width:9px;height:9px;border-radius:50%;background:#f87171"></div><span class="text-xs text-zinc-500">歷史升息</span></div>
+      <div class="flex items-center gap-1"><div style="width:9px;height:9px;border-radius:50%;background:#60a5fa"></div><span class="text-xs text-zinc-500">歷史降息</span></div>
+      <div class="flex items-center gap-1"><div style="width:9px;height:9px;border-radius:50%;background:#fbbf24"></div><span class="text-xs text-zinc-500">歷史按兵不動</span></div>
+      <div class="flex items-center gap-1"><div style="width:9px;height:9px;border-radius:50%;background:#fbbf24;border:2px solid #09090b"></div><span class="text-xs text-zinc-500">◎ 當前（可拖拉）</span></div>
+    </div>
+  </div>
+
+  <!-- Scoring Detail -->
+  <div class="card mb-4">
+    <div class="text-sm font-semibold text-zinc-300 mb-3">📋 評分明細</div>
+    <div id="scoreDetail" style="display:flex;flex-direction:column;gap:.375rem">
+      <!-- Filled by JS -->
+    </div>
+  </div>
+
+  <div class="text-xs text-zinc-600" style="text-align:center;padding-bottom:1.5rem">
+    資料來源：本地快照 merged_snapshot.json｜非投資建議｜僅供參考
+  </div>
+</div>
+
+<script>
+// ── Snapshot data (from merged_snapshot.json at build time) ──
+const SNAP = {
+  vix: 15.84,
+  shillerPE: 41.57,
+  fearGreed: 44,
+  hyOAS: 276,
+  breadth: 53.67,
+  tnx: 4.510,
+  tnxMA20: 4.362,
+  dxy: 99.19,
+  dxyMA20: 98.00,
+  spyPrice: 737.55,
+  spyPrev: 757.09,
+  spyMA200: 686.8,  // approx from report: SPY +7.3% vs MA200
+  copper: 4.47,
+  copperMA3: 4.38,
+  // Portfolio
+  alloc: { cash: 18, qqq: 24, smh: 31, boxx: 27, qld: 0 },
+  timestamp: 'merged_snapshot.json (快照：2026-06-08)',
+};
+
+// ── Scoring ──
+function computeScore(s) {
+  const rows = [];
+  let trend = 0, sent = 0;
+
+  // Trend axis (8 pts)
+  const copperOk = s.copper > s.copperMA3;
+  rows.push({ name: 'Copper vs MA3', val: s.copper.toFixed(3) + ' vs ' + s.copperMA3.toFixed(3), ok: copperOk, pts: copperOk ? 1 : 0, max: 1, axis: 'trend' });
+  trend += copperOk ? 1 : 0;
+
+  const tnxOk = s.tnx < s.tnxMA20; // yields below MA = bullish
+  rows.push({ name: '10Y殖利率 vs MA20', val: s.tnx.toFixed(3) + '% vs ' + s.tnxMA20.toFixed(3) + '%', ok: tnxOk, pts: tnxOk ? 1 : 0, max: 1, axis: 'trend', note: tnxOk ? '殖利率偏低 ✅' : '殖利率偏高 ❌' });
+  trend += tnxOk ? 1 : 0;
+
+  const dxyOk = s.dxy < s.dxyMA20;
+  rows.push({ name: '美元指數 vs MA20', val: s.dxy.toFixed(2) + ' vs ' + s.dxyMA20.toFixed(2), ok: dxyOk, pts: dxyOk ? 1 : 0, max: 1, axis: 'trend', note: dxyOk ? '美元偏弱 ✅' : '美元強勢 ❌' });
+  trend += dxyOk ? 1 : 0;
+
+  const spyTrend = s.spyPrice > s.spyMA200;
+  const spyPct = ((s.spyPrice / s.spyMA200 - 1) * 100).toFixed(1);
+  rows.push({ name: 'SPY vs MA200', val: `+${spyPct}% vs MA200`, ok: spyTrend, pts: spyTrend ? 1 : 0, max: 1, axis: 'trend' });
+  trend += spyTrend ? 1 : 0;
+
+  // Breadth 2pts
+  let breadthPts = 0, breadthNote = '';
+  if (s.breadth >= 65) { breadthPts = 2; breadthNote = '廣度強 ✅✅'; }
+  else if (s.breadth >= 50) { breadthPts = 1; breadthNote = '廣度中性 ✅'; }
+  else { breadthPts = 0; breadthNote = '廣度弱 ❌'; }
+  rows.push({ name: '廣度 (% 上 MA50)', val: s.breadth.toFixed(1) + '%', ok: breadthPts > 0, pts: breadthPts, max: 2, axis: 'trend', note: breadthNote });
+  trend += breadthPts;
+
+  // Sentiment axis (9 pts — simplified)
+  let vixPts = 0;
+  if (s.vix <= 15) vixPts = 3;
+  else if (s.vix <= 20) vixPts = 2;
+  else if (s.vix <= 30) vixPts = 1;
+  rows.push({ name: 'VIX', val: s.vix.toFixed(1), ok: s.vix <= 20, pts: vixPts, max: 3, axis: 'sent', note: s.vix <= 15 ? '恐慌極低 ✅✅✅' : s.vix <= 20 ? '恐慌偏低 ✅✅' : s.vix <= 30 ? '溫和恐慌 ✅' : '高恐慌 ❌' });
+  sent += vixPts;
+
+  let fgPts = 0;
+  if (s.fearGreed <= 25) fgPts = 2;
+  else if (s.fearGreed <= 45) fgPts = 1;
+  else if (s.fearGreed >= 75) fgPts = -1;
+  fgPts = Math.max(0, fgPts);
+  rows.push({ name: 'Fear & Greed', val: s.fearGreed + ' / 100', ok: s.fearGreed <= 45, pts: fgPts, max: 2, axis: 'sent', note: s.fearGreed <= 25 ? '極度恐懼 ✅✅' : s.fearGreed <= 45 ? '恐懼 ✅' : s.fearGreed >= 75 ? '極度貪婪 ❌' : '中性' });
+  sent += fgPts;
+
+  const hyOk = s.hyOAS < 300;
+  const hyPts = hyOk ? 1 : 0;
+  rows.push({ name: 'HY OAS', val: s.hyOAS + ' bp', ok: hyOk, pts: hyPts, max: 1, axis: 'sent', note: hyOk ? '信用利差正常 ✅' : '信用風險偏高 ❌' });
+  sent += hyPts;
+
+  // Shiller PE 2pts (penalty)
+  let shillerPts = 2, shillerNote = '';
+  if (s.shillerPE > 39) { shillerPts = 0; shillerNote = 'PE > 39 雙層警戒 ❌❌'; }
+  else if (s.shillerPE > 33) { shillerPts = 1; shillerNote = 'PE 偏高 ❌'; }
+  else { shillerNote = 'PE 合理 ✅✅'; }
+  rows.push({ name: 'Shiller PE', val: s.shillerPE.toFixed(2), ok: shillerPts > 0, pts: shillerPts, max: 2, axis: 'sent', note: shillerNote });
+  sent += shillerPts;
+
+  const total = trend + sent;
+  return { rows, trend, sent, total };
+}
+
+const scoring = computeScore(SNAP);
+
+// ── Score display ──
+const { rows, trend, sent, total } = scoring;
+document.getElementById('scoreVal').textContent = total.toFixed(1);
+document.getElementById('trendScore').textContent = trend;
+document.getElementById('sentScore').textContent = sent;
+const scoreBar = document.getElementById('scoreBar');
+scoreBar.style.width = (total / 13 * 100) + '%';
+scoreBar.style.background = total >= 9 ? '#34d399' : total >= 6 ? '#fbbf24' : '#f87171';
+const scoreBadge = document.getElementById('scoreBadge');
+let scoreClass = 'badge-amber', scoreText = '中性';
+if (total >= 9) { scoreClass = 'badge-green'; scoreText = '偏多'; }
+else if (total <= 4) { scoreClass = 'badge-red'; scoreText = '偏空'; }
+scoreBadge.className = 'badge ' + scoreClass;
+scoreBadge.textContent = scoreText;
+document.getElementById('scoreDesc').textContent =
+  total >= 9 ? '市場趨勢良好，情緒支持積極配置' :
+  total >= 6 ? '市場中性偏多，謹慎持倉' :
+  '市場偏空，建議防禦性配置';
+
+// Timestamp
+document.getElementById('timestamp').textContent = '快照：' + SNAP.timestamp;
+
+// ── Score detail rows ──
+const detailEl = document.getElementById('scoreDetail');
+rows.forEach(r => {
+  const div = document.createElement('div');
+  div.style.cssText = 'display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:.5rem;padding:.375rem .5rem;border-radius:.375rem;background:' + (r.ok ? 'rgba(52,211,153,.05)' : 'rgba(248,113,113,.05)');
+  div.innerHTML = `
+    <div>
+      <span class="text-sm" style="color:#d4d4d8">${r.name}</span>
+      ${r.note ? `<span class="text-xs text-zinc-500 ml-2">${r.note}</span>` : ''}
+    </div>
+    <span class="mono text-xs" style="color:#a1a1aa">${r.val}</span>
+    <span class="badge ${r.ok ? 'badge-green' : 'badge-red'}" style="min-width:42px;justify-content:center">${r.pts}/${r.max}</span>
+  `;
+  detailEl.appendChild(div);
+});
+
+// ── Key Metrics Cards ──
+const metrics = [
+  { label: 'VIX', val: SNAP.vix.toFixed(1), sub: SNAP.vix <= 20 ? '低恐慌' : '警戒', color: SNAP.vix <= 20 ? '#34d399' : '#f87171' },
+  { label: 'F&G', val: SNAP.fearGreed, sub: SNAP.fearGreed <= 45 ? 'Fear' : SNAP.fearGreed >= 60 ? 'Greed' : 'Neutral', color: SNAP.fearGreed <= 45 ? '#34d399' : '#f87171' },
+  { label: 'Shiller PE', val: SNAP.shillerPE.toFixed(1), sub: 'PE > 39 ⚠️', color: '#f87171' },
+  { label: 'HY OAS', val: SNAP.hyOAS + 'bp', sub: SNAP.hyOAS < 300 ? '正常' : '偏高', color: SNAP.hyOAS < 300 ? '#34d399' : '#f87171' },
+  { label: '廣度', val: SNAP.breadth.toFixed(1) + '%', sub: '% 上MA50', color: SNAP.breadth >= 50 ? '#fbbf24' : '#f87171' },
+  { label: '10Y殖利率', val: SNAP.tnx.toFixed(2) + '%', sub: SNAP.tnx > SNAP.tnxMA20 ? '↑ 高於MA20' : '↓ 低於MA20', color: SNAP.tnx > SNAP.tnxMA20 ? '#f87171' : '#34d399' },
+  { label: '美元指數', val: SNAP.dxy.toFixed(1), sub: SNAP.dxy > SNAP.dxyMA20 ? '↑ 強勢' : '↓ 偏弱', color: SNAP.dxy > SNAP.dxyMA20 ? '#f87171' : '#34d399' },
+];
+const grid = document.getElementById('metricsGrid');
+metrics.forEach(m => {
+  const div = document.createElement('div');
+  div.className = 'card-sm text-center';
+  div.innerHTML = `<div class="metric-label">${m.label}</div>
+    <div class="metric-val" style="color:${m.color}">${m.val}</div>
+    <div class="metric-sub text-xs" style="color:#71717a">${m.sub}</div>`;
+  grid.appendChild(div);
+});
+
+// ── Allocation display ──
+const COLORS = { cash: '#71717a', qqq: '#4FB3FF', smh: '#3DDC97', boxx: '#fbbf24', qld: '#f87171' };
+const LABELS = { cash: '現金', qqq: 'QQQ', smh: 'SMH', boxx: 'BOXX', qld: 'QLD' };
+const allocDisp = document.getElementById('allocDisplay');
+Object.entries(SNAP.alloc).forEach(([k, v]) => {
+  if (v === 0) return;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:.5rem';
+  row.innerHTML = `<span class="text-xs mono" style="color:${COLORS[k]};min-width:40px">${LABELS[k]}</span>
+    <div style="flex:1;height:6px;background:#27272a;border-radius:9999px;overflow:hidden">
+      <div style="height:100%;width:${v}%;background:${COLORS[k]};border-radius:9999px"></div>
+    </div>
+    <span class="text-xs mono" style="color:#a1a1aa;min-width:30px;text-align:right">${v}%</span>`;
+  allocDisp.appendChild(row);
+});
+// Alloc color bar
+const bar = document.getElementById('allocBar');
+Object.entries(SNAP.alloc).forEach(([k, v]) => {
+  if (v === 0) return;
+  const seg = document.createElement('div');
+  seg.className = 'alloc-seg';
+  seg.style.cssText = `width:${v}%;background:${COLORS[k]}`;
+  bar.appendChild(seg);
+});
+document.getElementById('allocNote').textContent =
+  total >= 9 ? '趨勢偏多，可考慮增加股票配置' :
+  '估值過熱 + 趨勢中性 → 維持防禦性配置，BOXX 保底';
+
+// ── Fed Policy Quadrant Chart ──
+const canvas = document.getElementById('fedCanvas');
+const ctx = canvas.getContext('2d');
+const DPR = window.devicePixelRatio || 1;
+const CW_TOTAL = 640, CH_TOTAL = 360;
+canvas.width = CW_TOTAL * DPR; canvas.height = CH_TOTAL * DPR;
+ctx.scale(DPR, DPR);
+const M = { left: 50, right: 20, top: 30, bottom: 44 };
+const CW = CW_TOTAL - M.left - M.right, CH = CH_TOTAL - M.top - M.bottom;
+const X_MIN = 0, X_MAX = 10, Y_MIN = 2, Y_MAX = 12;
+const X_T = 2, Y_N = 4; // targets
+
+function xP(v) { return M.left + (v - X_MIN) / (X_MAX - X_MIN) * CW; }
+function yP(v) { return M.top + (Y_MAX - v) / (Y_MAX - Y_MIN) * CH; } // flip: low unemployment at top
+
+const HIST = [
+  { label: '1974', cpi: 12.2, u: 5.5, policy: '升息', color: '#f87171', year: '1974' },
+  { label: '1980 Volcker', cpi: 14.8, u: 6.3, policy: '暴力升息', color: '#f87171', year: '1980' },
+  { label: '1982 衰退', cpi: 6.1, u: 9.7, policy: '降息', color: '#60a5fa', year: '1982' },
+  { label: '2008 危機', cpi: 3.8, u: 6.9, policy: '緊急降息', color: '#60a5fa', year: '2008' },
+  { label: '2020 疫情', cpi: 0.3, u: 13.3, policy: '降息至0%', color: '#60a5fa', year: '2020' },
+  { label: '2021 通膨', cpi: 5.4, u: 5.4, policy: '按兵不動', color: '#fbbf24', year: '2021' },
+  { label: '2022 升息', cpi: 8.5, u: 3.6, policy: '連升75bp', color: '#f87171', year: '2022' },
+  { label: '2023 高息', cpi: 3.4, u: 3.7, policy: '暫停', color: '#fbbf24', year: '2023' },
+  { label: '2024 降息', cpi: 2.7, u: 4.0, policy: '緩降', color: '#60a5fa', year: '2024' },
+];
+
+let curCPI = 2.6, curU = 4.1;
+
+function drawFed() {
+  ctx.clearRect(0, 0, CW_TOTAL, CH_TOTAL);
+  const xT = xP(X_T), yN = yP(Y_N);
+  // Quadrant fill (visual: top = low unemployment)
+  const quadDefs = [
+    // [x, y, w, h, bg, label, policy, color]
+    [M.left, M.top, xT - M.left, yN - M.top, 'rgba(52,211,153,.09)', '✅ 黃金交叉', '維持 / 微降', '#34d399'],
+    [xT, M.top, M.left + CW - xT, yN - M.top, 'rgba(239,68,68,.12)', '🔥 過熱', '升息 ⬆️', '#f87171'],
+    [M.left, yN, xT - M.left, M.top + CH - yN, 'rgba(96,165,250,.12)', '📉 衰退', '降息 ⬇️', '#60a5fa'],
+    [xT, yN, M.left + CW - xT, M.top + CH - yN, 'rgba(234,179,8,.09)', '🌡️ 停滯性通膨', '兩難 ⏸️', '#facc15'],
+  ];
+  quadDefs.forEach(([x, y, w, h, bg, name, pol, c]) => {
+    ctx.fillStyle = bg; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = c; ctx.font = 'bold 11px Inter, system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(name, x + w / 2, y + 20);
+    ctx.fillStyle = c + 'bb'; ctx.font = '10px ui-monospace, monospace';
+    ctx.fillText(pol, x + w / 2, y + 36);
+  });
+
+  // Grid
+  ctx.strokeStyle = 'rgba(63,63,70,.35)'; ctx.lineWidth = 0.5;
+  for (let x = 0; x <= 10; x += 2) { const px = xP(x); ctx.beginPath(); ctx.moveTo(px, M.top); ctx.lineTo(px, M.top + CH); ctx.stroke(); }
+  for (let y = 2; y <= 12; y += 2) { const py = yP(y); ctx.beginPath(); ctx.moveTo(M.left, py); ctx.lineTo(M.left + CW, py); ctx.stroke(); }
+
+  // Target lines
+  ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.moveTo(xT, M.top); ctx.lineTo(xT, M.top + CH); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(M.left, yN); ctx.lineTo(M.left + CW, yN); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Axis labels
+  ctx.fillStyle = '#fbbf24'; ctx.font = '9px Inter, system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('通膨目標 2%', xT, M.top - 8);
+  ctx.textAlign = 'right';
+  ctx.fillText('自然失業率 4%', M.left - 4, yN + 4);
+
+  // Axes
+  ctx.strokeStyle = 'rgba(113,113,122,.5)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(M.left, M.top); ctx.lineTo(M.left, M.top + CH); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(M.left, M.top + CH); ctx.lineTo(M.left + CW, M.top + CH); ctx.stroke();
+
+  // X labels
+  ctx.fillStyle = '#71717a'; ctx.font = '9px Inter, system-ui'; ctx.textAlign = 'center';
+  for (let x = 0; x <= 10; x += 2) ctx.fillText(x + '%', xP(x), M.top + CH + 14);
+  ctx.fillText('← 通膨率 (核心PCE) →', M.left + CW / 2, M.top + CH + 30);
+
+  // Y labels
+  ctx.textAlign = 'right';
+  for (let y = 2; y <= 12; y += 2) ctx.fillText(y + '%', M.left - 5, yP(y) + 3);
+  ctx.save(); ctx.translate(12, M.top + CH / 2); ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center'; ctx.fillText('← 失業率 →', 0, 0); ctx.restore();
+
+  // Historical points
+  HIST.forEach(pt => {
+    if (pt.cpi > X_MAX || pt.u < Y_MIN || pt.u > Y_MAX) return;
+    const px = xP(pt.cpi), py = yP(pt.u);
+    ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2);
+    ctx.fillStyle = pt.color + '88'; ctx.fill();
+    ctx.strokeStyle = pt.color; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = pt.color; ctx.font = 'bold 8px Inter, system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(pt.year, px, py - 9);
+  });
+
+  // Current dot
+  const cx = xP(curCPI), cy = yP(curU);
+  ctx.beginPath(); ctx.arc(cx, cy, 11, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(251,191,36,.3)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+  ctx.fillStyle = '#fbbf24'; ctx.fill();
+  ctx.strokeStyle = '#09090b'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 9px Inter, system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('現在', cx, cy - 13);
+}
+
+function getPolicy(cpi, u) {
+  const hi = cpi > X_T, hiU = u > Y_N;
+  if (!hi && !hiU) return { name: '✅ 黃金交叉 (Goldilocks)', policy: '⏸️ 維持 / 微降', color: '#34d399', desc: '通膨達標 + 充分就業 → 聯準會政策成功，維持利率或小幅降息', action: '預期：維持不動，或保險性降息 25bp' };
+  if (hi && !hiU)  return { name: '🔥 過熱 (Overheating)',  policy: '⬆️ 升息',         color: '#f87171', desc: '通膨超標 + 就業過熱 → 明確升息，壓制需求側通膨', action: '預期：連續升息 25–75bp，直至通膨回落至目標' };
+  if (!hi && hiU)  return { name: '📉 衰退 (Recession)',     policy: '⬇️ 降息',         color: '#60a5fa', desc: '通膨偏低 + 失業高 → 積極降息刺激就業與需求', action: '預期：快速降息，必要時 QE，利率壓至零' };
+  return { name: '🌡️ 停滯性通膨 (Stagflation)', policy: '⏸️ 兩難持平', color: '#facc15', desc: '通膨超標 + 失業高 → 升息傷就業、降息助通膨，政策進退兩難', action: '預期：按兵不動或輕微升息，優先穩定通膨預期' };
+}
+
+function updateFed() {
+  curCPI = parseFloat(document.getElementById('cpiSlider').value);
+  curU = parseFloat(document.getElementById('unempSlider').value);
+  document.getElementById('cpiVal').textContent = curCPI.toFixed(1) + '%';
+  document.getElementById('unempVal').textContent = curU.toFixed(1) + '%';
+  drawFed();
+  const q = getPolicy(curCPI, curU);
+  document.getElementById('fedBadge').textContent = q.policy;
+  document.getElementById('fedBadge').className = 'badge badge-' + (q.color === '#34d399' ? 'green' : q.color === '#f87171' ? 'red' : q.color === '#60a5fa' ? 'sky' : 'amber');
+  const pr = document.getElementById('policyResult');
+  pr.style.borderColor = q.color; pr.style.background = q.color + '15';
+  pr.innerHTML = `<div class="p-name" style="color:${q.color}">${q.name} &nbsp;→&nbsp; ${q.policy}</div>
+    <div class="p-desc">${q.desc}</div><div class="p-action">${q.action}</div>`;
+}
+
+document.getElementById('cpiSlider').addEventListener('input', updateFed);
+document.getElementById('unempSlider').addEventListener('input', updateFed);
+
+// Tooltip on canvas hover
+const tip = document.createElement('div');
+tip.style.cssText = 'position:fixed;background:rgba(24,24,27,.97);border:1px solid #3f3f46;border-radius:8px;padding:8px 12px;font-size:11px;pointer-events:none;display:none;min-width:150px;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.4)';
+document.body.appendChild(tip);
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (CW_TOTAL / rect.width);
+  const my = (e.clientY - rect.top) * (CH_TOTAL / rect.height);
+  let found = null;
+  for (const pt of HIST) {
+    if (pt.cpi > X_MAX || pt.u < Y_MIN || pt.u > Y_MAX) continue;
+    if (Math.hypot(mx - xP(pt.cpi), my - yP(pt.u)) < 12) { found = pt; break; }
+  }
+  if (found) {
+    tip.style.display = 'block'; tip.style.left = (e.clientX + 14) + 'px'; tip.style.top = (e.clientY - 20) + 'px';
+    tip.innerHTML = `<div style="font-weight:700;color:${found.color};margin-bottom:4px">${found.label}</div>
+      <div style="color:#a1a1aa">通膨率：<span style="color:#f4f4f5">${found.cpi}%</span></div>
+      <div style="color:#a1a1aa">失業率：<span style="color:#f4f4f5">${found.u}%</span></div>
+      <div style="color:#a1a1aa">Fed動作：<span style="color:${found.color}">${found.policy}</span></div>`;
+  } else { tip.style.display = 'none'; }
+});
+canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+
+// Init
+updateFed();
+</script>
+</body>
+</html>
