@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-07-05T00:00:00Z",
+  "vix": 15.84,
+  "fearGreed": 44,
+  "shillerPE": 41.57,
+  "hyOAS": 276,
+  "breadth": 53.67,
+  "tnx": 4.51,
+  "tnxMA20": 4.362,
+  "dxy": 99.19,
+  "dxyMA20": 98.0,
+  "spyPrice": 737.55,
+  "spyMA200": 686.8,
+  "copper": 4.47,
+  "copperMA3": 4.38,
+  "alloc": {
+    "cash": 18,
+    "qqq": 24,
+    "smh": 31,
+    "boxx": 27,
+    "qld": 0
+  }
+}
