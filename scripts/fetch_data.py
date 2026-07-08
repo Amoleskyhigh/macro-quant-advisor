@@ -7,13 +7,11 @@ Data sources:
   - yfinance : VIX, TNX, DXY, SPY, Copper (no key needed)
   - CNN API  : Fear & Greed (no key needed)
   - multpl   : Shiller CAPE (scraped, no key needed)
-  - FRED API : HY OAS (free key -> set FRED_API_KEY secret in GitHub)
+  - FRED CSV : HY OAS BAMLH0A0HYM2 (no key needed)
 """
 
 import json, os, sys, datetime, requests
 import yfinance as yf
-
-FRED_KEY = os.environ.get("FRED_API_KEY", "")
 
 HEADERS = {
     "User-Agent": (
@@ -114,22 +112,37 @@ def shiller_pe():
     return None
 
 
-def fred_value(series_id):
-    if not FRED_KEY:
-        print(f"[FRED] No FRED_API_KEY, skipping {series_id}", file=sys.stderr)
-        return None
+def hy_oas_fred_csv():
+    """
+    Fetch HY OAS (BAMLH0A0HYM2) from FRED public CSV — no API key needed.
+    CSV format: DATE,BAMLH0A0HYM2
+    Parse last row where value != '.'
+    Falls back to a cached snapshot value if request fails.
+    """
+    SNAPSHOT = 3.0   # approximate fallback (bps / 100 in FRED units)
+    url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=BAMLH0A0HYM2"
     try:
-        url = (
-            f"https://api.stlouisfed.org/fred/series/observations"
-            f"?series_id={series_id}&api_key={FRED_KEY}"
-            f"&sort_order=desc&limit=5&file_type=json"
-        )
-        obs = [o for o in requests.get(url, timeout=12).json().get("observations", [])
-               if o["value"] != "."]
-        return float(obs[0]["value"]) if obs else None
+        r = requests.get(url, headers=HEADERS, timeout=20)
+        if r.status_code != 200:
+            print(f"[HY OAS] CSV HTTP {r.status_code}, using snapshot {SNAPSHOT}", file=sys.stderr)
+            return SNAPSHOT
+        lines = r.text.strip().splitlines()
+        last_val = None
+        for line in lines[1:]:          # skip header row
+            parts = line.strip().split(",")
+            if len(parts) >= 2 and parts[1] not in (".", ""):
+                try:
+                    last_val = float(parts[1])
+                except ValueError:
+                    pass
+        if last_val is not None:
+            print(f"[HY OAS] {last_val}", file=sys.stderr)
+            return round(last_val, 2)
+        print(f"[HY OAS] No valid value in CSV, using snapshot {SNAPSHOT}", file=sys.stderr)
+        return SNAPSHOT
     except Exception as e:
-        print(f"[FRED] {series_id}: {e}", file=sys.stderr)
-        return None
+        print(f"[HY OAS] {e}, using snapshot {SNAPSHOT}", file=sys.stderr)
+        return SNAPSHOT
 
 
 # Representative ~60 S&P 500 stocks (replaces slow full-500 download)
@@ -191,7 +204,7 @@ def main():
 
     fg      = fear_greed()
     cape    = shiller_pe()
-    hy_oas  = fred_value("BAMLH0A0HYM2")
+    hy_oas  = hy_oas_fred_csv()
     breadth = spx_breadth()
 
     def r(v, d=2):
@@ -202,7 +215,7 @@ def main():
         "vix":        r(vix_cur),
         "fearGreed":  fg,
         "shillerPE":  r(cape, 2),
-        "hyOAS":      round(hy_oas) if hy_oas else None,
+        "hyOAS":      r(hy_oas, 2),
         "breadth":    breadth,
         "tnx":        r(tnx_cur, 3),
         "tnxMA20":    r(moving_avg(tnx_h, 20), 3),
