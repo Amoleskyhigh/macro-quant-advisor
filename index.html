@@ -163,10 +163,16 @@ const FALLBACK = {
 };
 
 async function init() {
-  let SNAP = FALLBACK;
+  let SNAP = { ...FALLBACK };
   try {
     const r = await fetch('./data.json?t=' + Date.now());
-    if (r.ok) { const d = await r.json(); SNAP = { ...FALLBACK, ...d }; }
+    if (r.ok) {
+      const d = await r.json();
+      // Merge: only override FALLBACK if value is non-null
+      Object.entries(d).forEach(([k, v]) => {
+        if (v !== null && v !== undefined) SNAP[k] = v;
+      });
+    }
   } catch (e) { console.warn('data.json unavailable, using fallback', e); }
 
   document.getElementById('loading').style.display = 'none';
@@ -200,7 +206,7 @@ function computeScore(s) {
   trend += spyOk?1:0;
   let bPts = 0, bNote = '';
   if (s.breadth != null) { if (s.breadth >= 65) { bPts=2; bNote='強勢 ✅✅'; } else if (s.breadth >= 50) { bPts=1; bNote='中性 ✅'; } else { bNote='偏弱 ❌'; } } else { bNote='資料不足'; }
-  rows.push({ name: '廣度 (% 上MA50)', val: (s.breadth||'?')+'%', ok: bPts>0, pts: bPts, max:2, note: bNote });
+  rows.push({ name: '廣度 (% 上MA50)', val: (s.breadth!=null?s.breadth+'%':'—'), ok: bPts>0, pts: bPts, max:2, note: bNote });
   trend += bPts;
   let vPts = 0;
   if (s.vix != null) { if (s.vix<=15) vPts=3; else if (s.vix<=20) vPts=2; else if (s.vix<=30) vPts=1; }
@@ -208,14 +214,14 @@ function computeScore(s) {
   sent += vPts;
   let fPts = 0;
   if (s.fearGreed != null) { if (s.fearGreed<=25) fPts=2; else if (s.fearGreed<=45) fPts=1; }
-  rows.push({ name:'Fear & Greed', val:(s.fearGreed||'?')+' / 100', ok:s.fearGreed!=null&&s.fearGreed<=45, pts:fPts, max:2, note: s.fearGreed!=null?(s.fearGreed<=25?'極度恐懼 ✅✅':s.fearGreed<=45?'恐懼 ✅':s.fearGreed>=75?'極度貪婪 ❌':'中性'):'' });
+  rows.push({ name:'Fear & Greed', val:(s.fearGreed!=null?s.fearGreed:'—')+' / 100', ok:s.fearGreed!=null&&s.fearGreed<=45, pts:fPts, max:2, note: s.fearGreed!=null?(s.fearGreed<=25?'極度恐懼 ✅✅':s.fearGreed<=45?'恐懼 ✅':s.fearGreed>=75?'極度貪婪 ❌':'中性'):'' });
   sent += fPts;
   const hyOk = s.hyOAS!=null && s.hyOAS<300;
-  rows.push({ name:'HY OAS', val:(s.hyOAS||'?')+'bp', ok:hyOk, pts:hyOk?1:0, max:1, note:hyOk?'正常 ✅':'偏高 ❌' });
+  rows.push({ name:'HY OAS', val:(s.hyOAS!=null?s.hyOAS:'—')+'bp', ok:hyOk, pts:hyOk?1:0, max:1, note:hyOk?'正常 ✅':'偏高 ❌' });
   sent += hyOk?1:0;
   let shPts = 2, shNote='PE 合理 ✅✅';
   if (s.shillerPE!=null) { if (s.shillerPE>39) { shPts=0; shNote='> 39 雙層警戒 ❌❌'; } else if (s.shillerPE>33) { shPts=1; shNote='偏高 ❌'; } }
-  rows.push({ name:'Shiller PE', val:(s.shillerPE||'?')+'', ok:shPts>0, pts:shPts, max:2, note:shNote });
+  rows.push({ name:'Shiller PE', val:(s.shillerPE!=null?s.shillerPE:'—')+'', ok:shPts>0, pts:shPts, max:2, note:shNote });
   sent += shPts;
   return { rows, trend, sent, total: trend+sent };
 }
@@ -248,12 +254,12 @@ function render(SNAP) {
 
   const metrics = [
     { label:'VIX', val:(SNAP.vix||'—'), sub:SNAP.vix!=null&&SNAP.vix<=20?'低恐慌':'⚠ 警戒', color:SNAP.vix!=null&&SNAP.vix<=20?'#34d399':'#f87171' },
-    { label:'F&G', val:(SNAP.fearGreed||'—'), sub:SNAP.fearGreed!=null?(SNAP.fearGreed<=45?'Fear':SNAP.fearGreed>=60?'Greed':'Neutral'):'—', color:SNAP.fearGreed!=null&&SNAP.fearGreed<=45?'#34d399':'#f87171' },
-    { label:'Shiller PE', val:SNAP.shillerPE||'—', sub:SNAP.shillerPE!=null&&SNAP.shillerPE>39?'⚠ 過高':'合理', color:SNAP.shillerPE!=null&&SNAP.shillerPE>39?'#f87171':'#34d399' },
-    { label:'HY OAS', val:(SNAP.hyOAS||'—')+'bp', sub:SNAP.hyOAS!=null&&SNAP.hyOAS<300?'正常':'偏高', color:SNAP.hyOAS!=null&&SNAP.hyOAS<300?'#34d399':'#f87171' },
+    { label:'F&G', val:(SNAP.fearGreed!=null?SNAP.fearGreed:'—'), sub:SNAP.fearGreed!=null?(SNAP.fearGreed<=45?'Fear':SNAP.fearGreed>=60?'Greed':'Neutral'):'—', color:SNAP.fearGreed!=null&&SNAP.fearGreed<=45?'#34d399':'#f87171' },
+    { label:'Shiller PE', val:SNAP.shillerPE!=null?SNAP.shillerPE:'—', sub:SNAP.shillerPE!=null&&SNAP.shillerPE>39?'⚠ 過高':'合理', color:SNAP.shillerPE!=null&&SNAP.shillerPE>39?'#f87171':'#34d399' },
+    { label:'HY OAS', val:(SNAP.hyOAS!=null?SNAP.hyOAS:'—')+'bp', sub:SNAP.hyOAS!=null&&SNAP.hyOAS<300?'正常':'偏高', color:SNAP.hyOAS!=null&&SNAP.hyOAS<300?'#34d399':'#f87171' },
     { label:'廣度', val:(SNAP.breadth!=null?SNAP.breadth+'%':'—'), sub:'% 上MA50', color:SNAP.breadth!=null&&SNAP.breadth>=50?'#fbbf24':'#f87171' },
     { label:'10Y殖利率', val:(SNAP.tnx||'—')+'%', sub:SNAP.tnx!=null&&SNAP.tnxMA20!=null?(SNAP.tnx>SNAP.tnxMA20?'↑ 高於MA20':'↓ 低於MA20'):'—', color:SNAP.tnx!=null&&SNAP.tnxMA20!=null&&SNAP.tnx>SNAP.tnxMA20?'#f87171':'#34d399' },
-    { label:'美元指數', val:SNAP.dxy||'—', sub:SNAP.dxy!=null&&SNAP.dxyMA20!=null?(SNAP.dxy>SNAP.dxyMA20?'↑ 強勢':'↓ 偏弱'):'—', color:SNAP.dxy!=null&&SNAP.dxyMA20!=null&&SNAP.dxy>SNAP.dxyMA20?'#f87171':'#34d399' },
+    { label:'美元指數', val:SNAP.dxy!=null?SNAP.dxy:'—', sub:SNAP.dxy!=null&&SNAP.dxyMA20!=null?(SNAP.dxy>SNAP.dxyMA20?'↑ 強勢':'↓ 偏弱'):'—', color:SNAP.dxy!=null&&SNAP.dxyMA20!=null&&SNAP.dxy>SNAP.dxyMA20?'#f87171':'#34d399' },
   ];
   const grid = document.getElementById('metricsGrid'); grid.innerHTML = '';
   metrics.forEach(m => { const div = document.createElement('div'); div.className='card-sm text-center'; div.innerHTML=`<div class="metric-label">${m.label}</div><div class="metric-val" style="color:${m.color}">${m.val}</div><div class="metric-sub text-xs" style="color:#71717a">${m.sub}</div>`; grid.appendChild(div); });
