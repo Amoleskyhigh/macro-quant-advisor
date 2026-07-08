@@ -15,6 +15,14 @@ import yfinance as yf
 
 FRED_KEY = os.environ.get("FRED_API_KEY", "")
 
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    )
+}
+
 
 def yf_closes(ticker, period="90d"):
     try:
@@ -35,27 +43,72 @@ def moving_avg(lst, n):
 
 
 def fear_greed():
-    try:
-        r = requests.get(
-            "https://production.dataviz.cnn.io/index/fearandgreed/graphdata",
-            headers={"User-Agent": "Mozilla/5.0"}, timeout=12
-        )
-        return int(r.json()["fear_and_greed"]["score"])
-    except Exception as e:
-        print(f"[F&G] {e}", file=sys.stderr)
-        return None
+    """Fetch CNN Fear & Greed Index with multiple fallback approaches."""
+    endpoints = [
+        "https://production.dataviz.cnn.io/index/fearandgreed/graphdata",
+        "https://production.dataviz.cnn.io/index/fearandgreed/graphdata/chart",
+    ]
+    for url in endpoints:
+        try:
+            r = requests.get(
+                url,
+                headers={**HEADERS, "Referer": "https://www.cnn.com/markets/fear-and-greed"},
+                timeout=15
+            )
+            if r.status_code != 200:
+                print(f"[F&G] HTTP {r.status_code} from {url}", file=sys.stderr)
+                continue
+            data = r.json()
+            # Handle different response structures
+            fg = data.get("fear_and_greed", data)
+            score = fg.get("score") or fg.get("current_score") or fg.get("value")
+            if score is not None:
+                return int(float(score))
+        except Exception as e:
+            print(f"[F&G] {url}: {e}", file=sys.stderr)
+    return None
 
 
 def shiller_pe():
+    """Scrape Shiller PE from multpl.com with multiple regex patterns."""
     import re
     try:
         r = requests.get(
             "https://www.multpl.com/shiller-pe",
-            headers={"User-Agent": "Mozilla/5.0"}, timeout=12
+            headers=HEADERS,
+            timeout=15
         )
-        m = re.search(r'id="current-value"[^>]*>\s*([\d.]+)', r.text)
+        if r.status_code != 200:
+            print(f"[Shiller] HTTP {r.status_code}", file=sys.stderr)
+            return None
+
+        # Try multiple patterns for robustness
+        patterns = [
+            r'id=["\']current-value["\'][^>]*>\s*\$?\s*([\d]+\.[\d]+)',
+            r'id=["\']current-value["\'][^>]*>\s*\$?\s*([\d]+)',
+            r'class=["\']current["\'][^>]*>[\s\S]{0,50}?([\d]{2}\.[\d]+)',
+            r'"current_value"\s*:\s*"?([\d]+\.[\d]+)"?',
+        ]
+        for pat in patterns:
+            m = re.search(pat, r.text, re.IGNORECASE)
+            if m:
+                val = float(m.group(1).replace(",", ""))
+                if 5 < val < 200:
+                    print(f"[Shiller] {val}", file=sys.stderr)
+                    return val
+
+        # Last resort: find any 2-digit.2-digit number near "shiller" or "cape"
+        m = re.search(
+            r'(?:shiller|cape|p/e)[^<]{0,300}?([\d]{2}\.[\d]{1,2})',
+            r.text, re.IGNORECASE | re.DOTALL
+        )
         if m:
-            return float(m.group(1))
+            val = float(m.group(1))
+            if 5 < val < 200:
+                print(f"[Shiller] fallback: {val}", file=sys.stderr)
+                return val
+
+        print("[Shiller] No match found", file=sys.stderr)
     except Exception as e:
         print(f"[Shiller] {e}", file=sys.stderr)
     return None
@@ -79,21 +132,38 @@ def fred_value(series_id):
         return None
 
 
+# Representative ~60 S&P 500 stocks (replaces slow full-500 download)
+SPX_SAMPLE = [
+    # Mega cap tech
+    "AAPL", "MSFT", "NVDA", "META", "GOOGL", "AMZN", "TSLA", "AVGO", "AMD",
+    "ORCL", "ADBE", "CRM", "QCOM", "TXN", "INTC",
+    # Finance
+    "JPM", "BAC", "WFC", "GS", "BLK", "V", "MA", "AXP",
+    # Healthcare
+    "UNH", "JNJ", "LLY", "PFE", "ABBV", "MRK", "TMO", "AMGN",
+    # Consumer
+    "HD", "COST", "WMT", "MCD", "SBUX", "NKE", "TGT",
+    # Energy
+    "XOM", "CVX", "COP", "SLB",
+    # Industrial
+    "CAT", "BA", "GE", "HON", "RTX", "UPS", "DE",
+    # Communication / Media
+    "DIS", "NFLX", "T", "VZ", "CMCSA",
+    # Utilities / Real estate
+    "NEE", "SO", "DUK", "AMT", "PLD",
+]
+
+
 def spx_breadth():
+    """% of representative S&P 500 stocks above their 50-day MA."""
     try:
-        import pandas as pd
-        tables = pd.read_html(
-            "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
-            attrs={"id": "constituents"}
-        )
-        tickers = tables[0]["Symbol"].str.replace(".", "-", regex=False).tolist()
-        print(f"[breadth] Downloading {len(tickers)} tickers ...", file=sys.stderr)
+        print(f"[breadth] Downloading {len(SPX_SAMPLE)} stocks ...", file=sys.stderr)
         data = yf.download(
-            tickers, period="80d", auto_adjust=True,
+            SPX_SAMPLE, period="80d", auto_adjust=True,
             progress=False, threads=True
         )["Close"]
         above, total = 0, 0
-        for t in tickers:
+        for t in SPX_SAMPLE:
             if t not in data.columns:
                 continue
             s = data[t].dropna()
